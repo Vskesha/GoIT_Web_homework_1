@@ -1,20 +1,24 @@
 from collections import UserDict
 from datetime import datetime, timedelta
+from abc import ABC, abstractmethod
+
 import calendar
 import re
 import json
 
 
-class Field:
+class Field(ABC):
     """
     A base class for representing fields with validation.
     Args:
         value: The initial value of the field.
     """
+
     def __init__(self, value: str):
         self.__value = None
         self.value = value
 
+    @abstractmethod
     def validate(self, new_value: str) -> bool:
         """
         Validates a new value for the field.
@@ -29,13 +33,13 @@ class Field:
         return self.__value
 
     @value.setter
-    def value(self, new_value: str) -> None:
+    def value(self, new_value: str):
         """
         Setter for the field's value.
         """
         self.__value = new_value
 
-    def __str__(self)-> str:
+    def __str__(self) -> str:
         """
         Returns a string representation of the field's value.
         """
@@ -48,18 +52,18 @@ class Phone(Field):
     Args:
         value: The initial value of the phone number.
     """
+
     def __init__(self, value: str = None):
         super().__init__(value)
 
     @Field.value.setter
-    def value(self, new_value: str) -> str:
+    def value(self, new_value: str):
         """
         Setter method for the phone number field.
          """
-        if self.validate(new_value):
-            Field.value.fset(self, new_value)
-        else:
+        if not self.validate(new_value):
             return f'The phone number {new_value} cannot be assigned as it is not valid.'
+        Field.value.fset(self, new_value)
 
     def validate(self, number: str) -> bool:
         """
@@ -67,33 +71,28 @@ class Phone(Field):
         """
         if number is None:
             return False
-        try:
-            phone_format = r'\+380\d{9}'
-            if not re.match(phone_format, number):
-                return False
-            return True
-        except ValueError:
-            return False
+        phone_format = r'^\+\d{1,3}\d{9}$'
+        return bool(re.match(phone_format, number))
 
 
 class Email(Field):
     """
     A class representing an email address field with validation.
     Args:
-        value: The initial value of the email address..
+        value: The initial value of the email address.
     """
+
     def __init__(self, value: str = None):
         super().__init__(value)
 
     @Field.value.setter
-    def value(self, new_value: str) -> str:
+    def value(self, new_value: str):
         """
         Setter method for the email field.
         """
-        if self.validate(new_value):
-            Field.value.fset(self, new_value)
-        else:
+        if not self.validate(new_value):
             return f'The email {new_value} cannot be assigned as it is not valid.'
+        Field.value.fset(self, new_value)
 
     def validate(self, email: str) -> bool:
         """
@@ -101,13 +100,9 @@ class Email(Field):
         """
         if email is None:
             return False
-        try:
-            email_format = r'\b(?![A-Za-z0-9._%+-]*a@t[A-Za-z0-9._%+-]*)\b(?![0-9]{2})[A-Za-z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
-            if not re.match(email_format, email):
-                return False
-            return True
-        except ValueError:
-            return False
+        email_format = (r'\b(?![A-Za-z0-9._%+-]*a@t[A-Za-z0-9._%+-]*)\b'
+                        r'(?![0-9]{2})[A-Za-z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b')
+        return bool(re.match(email_format, email))
 
 
 class Name(Field):
@@ -116,30 +111,26 @@ class Name(Field):
     Args:
         value: The initial value of the name.
     """
+
     def __init__(self, value: str):
         super().__init__(value)
 
     @Field.value.setter
-    def value(self, new_value: str) -> str:
+    def value(self, new_value: str):
         """
         Setter method for the new name value.
         """
-        if self.validate(new_value):
-            Field.value.fset(self, new_value)
-        else:
+        if not self.validate(new_value):
             return f'The name {new_value} cannot be assigned as it is not valid.'
+        Field.value.fset(self, new_value)
 
     def validate(self, name: str) -> bool:
         """
         Validates a new name value.
         """
-        try:
-            name_format = r'^[A-Za-zА-Яа-я\s]+$'
-            if re.match(name_format, name) and len(name) > 1:
-                return True
+        if name is None or not re.match(r'^[A-Za-zА-Яа-я\s]+$', name) or len(name) <= 1:
             return False
-        except ValueError:
-            return False
+        return True
 
 
 class Birthday(Field):
@@ -148,6 +139,7 @@ class Birthday(Field):
     Args:
         value: The initial value of the birthday.
     """
+
     def __init__(self, value: str = None):
         super().__init__(value)
 
@@ -156,10 +148,9 @@ class Birthday(Field):
         """
         Setter method for the new birthday value.
         """
-        if self.validate(new_value):
-            Field.value.fset(self, new_value)
-        else:
+        if not self.validate(new_value):
             return f'The date of birth {new_value} cannot be assigned as it is not valid.'
+        Field.value.fset(self, new_value)
 
     def validate(self, new_value: str) -> bool:
         """
@@ -182,11 +173,12 @@ class Record:
     A class representing a contact record in an address book.
 
     Args:
-        name (str): The name of the contact.
-        phone (str): The phone number of the contact. Default is None.
-        birthday (str, optional): The birthday of the contact in 'dd.mm.yyyy' format. Default is None.
-        email (str, optional): The email address of the contact. Default is None.
+        name: The name of the contact.
+        phone: The phone number of the contact. Default is None.
+        birthday: The birthday of the contact in 'dd.mm.yyyy' format. Default is None.
+        email: The email address of the contact. Default is None.
     """
+
     def __init__(self, name: str, phone: str = None, birthday: str = None, email: str = None):
         self.birthday = Birthday(birthday) if birthday is not None else None
         self.email = Email(email) if email is not None else None
@@ -297,6 +289,7 @@ class AddressBook(UserDict):
     A class representing an address book that stores and
     manages contact records.
     """
+
     def add_record(self, record: Record) -> bool:
         """
         Adds a contact record to the address book
@@ -317,8 +310,8 @@ class AddressBook(UserDict):
         result = []
         found = False
         for record in self.data.values():
-            if 'name' in search_criteria and len(search_criteria['name']) >= 2 and search_criteria[
-                'name'] in record.name.value:
+            if ('name' in search_criteria and len(search_criteria['name']) >= 2
+                    and search_criteria['name'] in record.name.value):
                 result.append(record)
                 found = True
             if 'phones' in search_criteria and len(search_criteria['phones']) >= 5:
@@ -331,36 +324,21 @@ class AddressBook(UserDict):
             print("There is no contact that matches the specified search criteria.")
         return result
 
-    def get_all_records(self) -> str:
+    def get_all_records(self) -> list:
         """
-        Retrieves all contact records in the address
-        book and returns them.
+        Retrieves all contact records in the address book
+        and returns them as a list.
         """
-        all_contacts = []
-        header = '{:<20} {:<30} {:<20} {:<20}'.format('Name', 'Phone', 'Birthday', 'Email')
-        separator = '-' * len(header)
-        all_contacts.append(header)
-        all_contacts.append(separator)
-
         if self.data:
-            for record in self.data.values():
-                phones = ', '.join([f'{phone.value}' for phone in record.phones])
-                birthday_str = record.birthday.value if record.birthday else '-'
-                email_str = record.email.value if record.email else '-'
-                record_str = '{:<20} {:<30} {:<20} {:<20}'.format(
-                    record.name.value,
-                    phones,
-                    birthday_str,
-                    email_str
-                )
-                all_contacts.append(record_str)
+            contacts = list(self.data.values())
         else:
-            all_contacts.append("The address book is empty.")
-        return '\n'.join(all_contacts)
+            contacts = []
+
+        return contacts
 
     def get_birthdays_per_week(self, num: int) -> list:
         """
-        Finds and returns a list of names whose birthdaуs
+        Finds and returns a list of names whose birthdays
         begin after a given number of days.
         """
         to_day = datetime.now().date()
@@ -376,7 +354,7 @@ class AddressBook(UserDict):
         print(f'List of birthday celebrants to greet in {num} day(s): {happy_birthday}')
         return happy_birthday
 
-    def get_record_by_name(self, name: str) -> 'Record':
+    def get_record_by_name(self, name: str) -> Record | None:
         """
         Retrieves a contact record by searching for a name.
         """
@@ -395,7 +373,8 @@ class AddressBook(UserDict):
         else:
             return False
 
-    def validate_record(self, record: Record) -> bool:
+    @staticmethod
+    def validate_record(record: Record) -> bool:
         """
         Validates a contact record, including name,
         phone numbers, birthday, and email.
@@ -423,7 +402,7 @@ class AddressBook(UserDict):
             print("Email is not valid.")
         return valid_phones and valid_name and valid_birthday and valid_email
 
-    def iterator(self, n: int) -> Record:
+    def iterator(self, n: int):
         """
         Splits the address book into iterators with 'n'
         records per iteration.
@@ -462,6 +441,7 @@ class AddressBookFileHandler:
     Args:
         file_name (str): The name of the file to read from or write to.
     """
+
     def __init__(self, file_name: str):
         self.file_name = file_name
 
@@ -472,7 +452,8 @@ class AddressBookFileHandler:
         with open(self.file_name, 'w') as file:
             json.dump(address_book.data, file, default=self._serialize_record, indent=4)
 
-    def _deserialize_record(self, contact_data: dict) -> Record:
+    @staticmethod
+    def _deserialize_record(contact_data: dict) -> Record | None:
         """
         Deserializes a contact record from a dictionary.
         """
@@ -503,7 +484,8 @@ class AddressBookFileHandler:
             pass
         return addressbook
 
-    def _serialize_record(self, record: Record) -> dict:
+    @staticmethod
+    def _serialize_record(record: Record) -> dict:
         """
        Serializes a contact record to a dictionary.
         """
